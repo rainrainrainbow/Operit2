@@ -159,6 +159,18 @@ jobs:
           Write-Host "=== Verifying patch ===" -ForegroundColor Green
           Get-Content apps/flutter/app/android/app/build.gradle.kts | Select-Object -First 35 | ForEach-Object { Write-Host "  $_" }
 
+      - name: Install TypeScript globally (needed by sync_plugin_packages.py)
+        shell: pwsh
+        run: |
+          Write-Host "=== Installing TypeScript ===" -ForegroundColor Cyan
+          npm install -g typescript@$env:TYPESCRIPT_VERSION
+          $tscPath = (Get-Command tsc.cmd -ErrorAction SilentlyContinue).Source
+          if (-not $tscPath) {
+            $tscPath = (Get-Command tsc -ErrorAction SilentlyContinue).Source
+          }
+          Write-Host "  TypeScript installed: $tscPath" -ForegroundColor Green
+          & tsc.cmd --version
+
       - name: Build Android debug APK (auto-signed by Android SDK)
         shell: pwsh
         run: |
