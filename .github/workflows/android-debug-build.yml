@@ -147,11 +147,22 @@ jobs:
         shell: pwsh
         run: python tools/build_scripts/build_flutter_web_access.py --base-href /
 
+      - name: Patch build.gradle.kts to make signing optional
+        shell: pwsh
+        run: |
+          Write-Host "=== Patching build.gradle.kts to allow unsigned debug builds ===" -ForegroundColor Cyan
+          python tools/build_scripts/patch_android_gradle.py apps/flutter/app/android/app/build.gradle.kts
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Patch script failed; aborting" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "=== Verifying patch ===" -ForegroundColor Green
+          Get-Content apps/flutter/app/android/app/build.gradle.kts | Select-Object -First 35 | ForEach-Object { Write-Host "  $_" }
+
       - name: Build Android debug APK (auto-signed by Android SDK)
         shell: pwsh
         run: |
-          Write-Host "=== Building Android debug APK (no signing config needed) ===" -ForegroundColor Cyan
-          Write-Host "Debug APK is auto-signed with Android SDK debug.keystore" -ForegroundColor Green
+          Write-Host "=== Building Android debug APK ===" -ForegroundColor Cyan
           Set-Location apps/flutter/app
           fvm flutter build apk --debug --no-pub --split-per-abi
           Set-Location ../..
