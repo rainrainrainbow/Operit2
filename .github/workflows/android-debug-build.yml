@@ -147,11 +147,14 @@ jobs:
         shell: pwsh
         run: python tools/build_scripts/build_flutter_web_access.py --base-href /
 
-      - name: Build Android release APK (unsigned)
+      - name: Build Android debug APK (auto-signed by Android SDK)
         shell: pwsh
         run: |
-          Write-Host "=== Building Android release APK (skip signing) ===" -ForegroundColor Cyan
-          python tools/build_scripts/build_flutter_android.py --skip-signing --enforce-lockfile
+          Write-Host "=== Building Android debug APK (no signing config needed) ===" -ForegroundColor Cyan
+          Write-Host "Debug APK is auto-signed with Android SDK debug.keystore" -ForegroundColor Green
+          Set-Location apps/flutter/app
+          fvm flutter build apk --debug --no-pub --split-per-abi
+          Set-Location ../..
 
       - name: Locate APK output
         shell: pwsh
