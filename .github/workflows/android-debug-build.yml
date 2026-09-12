@@ -1,0 +1,222 @@
+name: Android Debug Build (No Signing)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Android runtime build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bison \
+            build-essential \
+            bzip2 \
+            ca-certificates \
+            curl \
+            diffutils \
+            flex \
+            gawk \
+            gzip \
+            patch \
+            pkg-config \
+            tar \
+            unzip \
+            xz-utils
+
+      - name: Fetch Android runtime sources
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/android-runtime/fetch_sources.ps1
+
+      - name: Fetch Android NDK
+        run: bash tools/android-runtime/fetch_ndk_wsl.sh
+
+      - name: Build Android terminal runtime
+        run: |
+          export ANDROID_NDK_HOME="$HOME/.cache/operit-android-runtime/android-ndk-r29-beta4"
+          bash tools/android-runtime/build_android_tools_wsl.sh
+          bash tools/android-runtime/build_alpine_rootfs_wsl.sh
+
+      - name: Upload Android terminal runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: operit2-android-runtime-${{ github.sha }}
+          path: |
+            apps/flutter/app/android/app/src/main/jniLibs/*/libbash.so
+            apps/flutter/app/android/app/src/main/jniLibs/*/liboperit_busybox.so
+            apps/flutter/app/android/app/src/main/jniLibs/*/liboperit_loader.so
+            apps/flutter/app/android/app/src/main/jniLibs/*/liboperit_proot.so
+            apps/flutter/app/android/app/src/main/assets/android-runtime/*/rootfs.tar.gz.bin
+            apps/flutter/app/android/app/src/main/assets/android-runtime/*/rootfs.tar.gz.bin.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  build-android-debug:
+    needs: build-android-runtime
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      RUSTFLAGS: -Awarnings
+      RUST_TOOLCHAIN_VERSION: 1.95.0
+      FVM_VERSION: 4.1.2
+      TYPESCRIPT_VERSION: 5.9.3
+      WASM_BINDGEN_VERSION: 0.2.122
+      WASI_SDK_VERSION: "20.0"
+      QUICKJS_WASM_SYS_WASI_SDK_MAJOR_VERSION: 20
+      QUICKJS_WASM_SYS_WASI_SDK_MINOR_VERSION: 0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Android terminal runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: operit2-android-runtime-${{ github.sha }}
+          path: apps/flutter/app/android/app/src/main
+
+      - name: Install bootstrap Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install FVM
+        shell: pwsh
+        run: |
+          dart pub global activate fvm $env:FVM_VERSION
+          "$env:APPDATA\Pub\Cache\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Install project Flutter SDK
+        working-directory: apps/flutter/app
+        shell: pwsh
+        run: fvm install --skip-pub-get
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,wasm32-unknown-unknown
+
+      - name: Prepare Android bindgen libclang
+        shell: pwsh
+        run: |
+          $version = "21.1.8"
+          $packageName = "libclang.runtime.win-x64.$version"
+          $toolsDir = "target/operit-build-tools"
+          $packageDir = Join-Path $toolsDir $packageName
+          $archive = Join-Path $toolsDir "$packageName.nupkg"
+          New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+          Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/libclang.runtime.win-x64/$version" -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath $packageDir -Force
+          $libclang = Join-Path $packageDir "runtimes/win-x64/native/libclang.dll"
+          if (-not (Test-Path -LiteralPath $libclang)) {
+            throw "Android bindgen libclang was not prepared at $libclang"
+          }
+
+      - name: Check build environment
+        shell: pwsh
+        run: python tools/build_scripts/check_environment.py --products app --github-runner
+
+      - name: Build Web Access assets
+        shell: pwsh
+        run: python tools/build_scripts/build_flutter_web_access.py --base-href /
+
+      - name: Build Android release APK (unsigned)
+        shell: pwsh
+        run: |
+          Write-Host "=== Building Android release APK (skip signing) ===" -ForegroundColor Cyan
+          python tools/build_scripts/build_flutter_android.py --skip-signing --enforce-lockfile
+
+      - name: Locate APK output
+        shell: pwsh
+        run: |
+          Write-Host "=== Searching for APK files ===" -ForegroundColor Cyan
+          $apkFiles = Get-ChildItem -Path . -Filter "*.apk" -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch "build/intermediates" }
+          foreach ($f in $apkFiles) {
+            $size = [math]::Round($f.Length / 1MB, 2)
+            Write-Host ("  APK: {0} ({1} MB)" -f $f.FullName, $size)
+          }
+          $apkInReleaseDist = Get-ChildItem -Path "tools/release/dist" -Filter "*.apk" -ErrorAction SilentlyContinue
+          if ($apkInReleaseDist) {
+            foreach ($f in $apkInReleaseDist) {
+              $size = [math]::Round($f.Length / 1MB, 2)
+              Write-Host ("  Release APK: {0} ({1} MB)" -f $f.FullName, $size)
+            }
+          }
+
+      - name: Copy APKs to dist directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path tools/release/dist | Out-Null
+          Get-ChildItem -Path . -Filter "operit2-app-android-*.apk" -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.DirectoryName -notmatch "build/intermediates" } |
+            ForEach-Object {
+              $dest = Join-Path "tools/release/dist" $_.Name
+              Copy-Item -Path $_.FullName -Destination $dest -Force
+              $size = [math]::Round((Get-Item $dest).Length / 1MB, 2)
+              Write-Host ("  Copied: {0} ({1} MB)" -f $dest, $size)
+            }
+          # Also try the default Flutter output
+          $defaultApk = Get-ChildItem -Path "apps/flutter/app/build/app/outputs/flutter-apk" -Filter "*.apk" -ErrorAction SilentlyContinue
+          if ($defaultApk) {
+            foreach ($f in $defaultApk) {
+              $dest = Join-Path "tools/release/dist" ("operit2-" + $f.Name)
+              Copy-Item -Path $f.FullName -Destination $dest -Force
+              $size = [math]::Round((Get-Item $dest).Length / 1MB, 2)
+              Write-Host ("  Copied: {0} ({1} MB)" -f $dest, $size)
+            }
+          }
+
+      - name: Upload Android debug artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: operit2-android-debug-${{ github.sha }}
+          path: |
+            tools/release/dist/operit2-*.apk
+            apps/flutter/app/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Generate build info
+        shell: pwsh
+        run: |
+          Write-Host "=== Build Summary ===" -ForegroundColor Green
+          Write-Host "  Commit: ${{ github.sha }}"
+          Write-Host "  Runner: windows-2025"
+          Write-Host "  Build:  Debug (no signing)"
+          Write-Host "  Artifacts:"
+          Get-ChildItem -Path "tools/release/dist" -Filter "*.apk" -ErrorAction SilentlyContinue | ForEach-Object {
+            $size = [math]::Round($_.Length / 1MB, 2)
+            Write-Host ("    - {0} ({1} MB)" -f $_.Name, $size)
+          }
+          Write-Host ""
+          Write-Host "=== Installation ===" -ForegroundColor Green
+          Write-Host "  adb install operit2-app.apk" -ForegroundColor Gray
+          Write-Host "  or transfer to device and tap to install" -ForegroundColor Gray
