@@ -220,15 +220,14 @@ jobs:
             }
           }
 
-      - name: Upload Android debug artifacts
+      - name: Upload Android debug artifacts (single APK per ABI)
         uses: actions/upload-artifact@v4
         with:
           name: operit2-android-debug-${{ github.sha }}
-          path: |
-            tools/release/dist/operit2-*.apk
-            apps/flutter/app/build/app/outputs/flutter-apk/*.apk
+          path: tools/release/dist/operit2-*.apk
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0  # No compression (APK already compressed)
 
       - name: Generate build info
         shell: pwsh
