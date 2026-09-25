@@ -220,14 +220,32 @@ jobs:
             }
           }
 
-      - name: Upload Android debug artifacts (single APK per ABI)
+      - name: Upload Android debug APKs (one artifact per ABI for easy download)
         uses: actions/upload-artifact@v4
         with:
-          name: operit2-android-debug-${{ github.sha }}
-          path: tools/release/dist/operit2-*.apk
+          name: operit2-android-arm64-v8a
+          path: tools/release/dist/operit2-app-android-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 14
-          compression-level: 0  # No compression (APK already compressed)
+          compression-level: 0
+
+      - name: Upload armeabi-v7a APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: operit2-android-armeabi-v7a
+          path: tools/release/dist/operit2-app-android-armeabi-v7a.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload x86_64 APK (for emulator)
+        uses: actions/upload-artifact@v4
+        with:
+          name: operit2-android-x86_64
+          path: tools/release/dist/operit2-app-android-x86_64.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
 
       - name: Generate build info
         shell: pwsh
