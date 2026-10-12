@@ -78,7 +78,15 @@ jobs:
 
       - name: Build Flutter Web experience
         working-directory: apps/flutter/app
-        run: fvm flutter build web --release --no-wasm-dry-run --base-href /Operit2/ --no-web-resources-cdn
+        run: fvm flutter build web --release --no-wasm-dry-run --base-href /Operit2/ --no-web-resources-cdn --no-tree-shake-icons
+
+      - name: Force-bundle custom fonts into web output
+        working-directory: apps/flutter/app
+        run: |
+          mkdir -p build/web/assets/fonts
+          cp -v assets/fonts/NotoSansSC.ttf build/web/assets/fonts/
+          cp -v assets/fonts/CascadiaMono.ttf build/web/assets/fonts/
+          ls -la build/web/assets/fonts/
 
       - name: Verify Flutter Web output
         run: |
