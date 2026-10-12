@@ -34,6 +34,13 @@ jobs:
         with:
           node-version: 22
 
+      - name: Enable pnpm shim
+        run: |
+          corepack enable pnpm
+          corepack prepare pnpm@10.7.0 --activate
+          echo "/opt/hostedtoolcache/node/$(node -v | sed 's/^v//')/x64/bin" >> "$GITHUB_PATH"
+          pnpm --version
+
       - name: Install Python
         uses: actions/setup-python@v5
         with:
