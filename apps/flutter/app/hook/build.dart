@@ -552,6 +552,7 @@ const Set<String> _webRuntimeArtifactNames = <String>{
   'operit_flutter_bridge.d.ts',
   'sql-wasm.js',
   'sql-wasm.wasm',
+  'wasi_snapshot_preview1.js',
 };
 
 const Set<String> _generatedWebRuntimeFileNames = <String>{
