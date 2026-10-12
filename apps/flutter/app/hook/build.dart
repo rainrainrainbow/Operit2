@@ -143,6 +143,14 @@ void main(List<String> args) async {
         ],
       );
 
+      // The web host imports `wasi_snapshot_preview1` via the importmap, but
+      // this wasm module does not link real WASI. wasm-bindgen therefore does
+      // not emit the shim, so write a minimal placeholder that satisfies the
+      // importmap and exposes setWasiMemory() to the runtime bridge.
+      await _writeWasiShimModule(
+        File.fromUri(webBuildDir.uri.resolve('wasi_snapshot_preview1.js')),
+      );
+
       await _run(_command('npm'), [
         'install',
         '--silent',
@@ -332,6 +340,23 @@ Future<void> _writeWorkerWasmBridgeModule(
   }
   await workerBridgeModule.writeAsString(workerContents, flush: true);
 }
+
+/// Writes a minimal WASI shim that satisfies the `wasi_snapshot_preview1`
+/// importmap entry. This wasm module does not link real WASI, so wasm-bindgen
+/// does not emit the shim; the runtime bridge only needs `setWasiMemory`.
+Future<void> _writeWasiShimModule(File wasiModule) async {
+  const contents = '''
+// Minimal WASI shim for the web runtime bridge. The operit_flutter_bridge wasm
+// module does not link real WASI; this placeholder only exposes the
+// setWasiMemory() hook the runtime bridge expects.
+export function setWasiMemory(_memory) {
+  // No-op: memory is provided directly to the wasm module by wasm-bindgen.
+}
+export default { setWasiMemory };
+''';
+  await wasiModule.writeAsString(contents, flush: true);
+}
+
 
 /// Writes an ESM wrapper that exposes the UMD MessagePack runtime to module workers.
 Future<void> _writeWorkerMessagePackModule(
