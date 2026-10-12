@@ -135,6 +135,18 @@
     }
   </style>
   <script>
+    // Registers the cross-origin isolation service worker. GitHub Pages cannot
+    // send COOP/COEP response headers, so sw.js rewrites same-origin responses
+    // to make SharedArrayBuffer available to the wasm runtime workers.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch((error) => {
+          console.error("Operit service worker registration failed:", error);
+        });
+      });
+    }
+  </script>
+  <script>
     (() => {
       let latestOperitWebError = "";
 

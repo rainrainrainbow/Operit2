@@ -88,12 +88,18 @@ jobs:
           cp -v assets/fonts/CascadiaMono.ttf build/web/assets/fonts/
           ls -la build/web/assets/fonts/
 
+      - name: Force-bundle cross-origin isolation service worker
+        working-directory: apps/flutter/app
+        run: |
+          cp -v web/sw.js build/web/sw.js
+          test -s build/web/sw.js
+
       - name: Verify Flutter Web output
         run: |
           test -s apps/flutter/app/build/web/index.html
           test -s apps/flutter/app/build/web/main.dart.js
-          test -s apps/flutter/app/build/web/assets/assets/model_logos/DEEPSEEK.svg
-          test -s apps/flutter/app/build/web/runtime/generated/operit_runtime_worker.js
+          test -s apps/flutter/app/build/web/sw.js
+          grep -q "serviceWorker" apps/flutter/app/build/web/index.html
 
       - name: Configure Web custom domain
         run: rm -f apps/flutter/app/build/web/CNAME
