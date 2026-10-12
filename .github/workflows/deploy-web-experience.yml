@@ -88,19 +88,16 @@ jobs:
           test -s apps/flutter/app/build/web/runtime/generated/operit_runtime_worker.js
 
       - name: Configure Web custom domain
-        run: printf 'web.operit.app\n' > apps/flutter/app/build/web/CNAME
+        run: rm -f apps/flutter/app/build/web/CNAME
 
       - name: Publish to gh-pages branch
         run: |
-          staging_dir="$RUNNER_TEMP/operit-gh-pages"
-          rm -rf "$staging_dir"
-          mkdir -p "$staging_dir"
-          cp -a apps/flutter/app/build/web/. "$staging_dir/"
-          git checkout -B gh-pages "$GITHUB_SHA"
-          git rm -rf .
-          cp -a "$staging_dir/." .
+          git config user.name='github-actions[bot]'
+          git config user.email='41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout --orphan gh-pages-tmp
+          git rm -rf . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -a apps/flutter/app/build/web/. .
           git add --all
-          git -c user.name='github-actions[bot]' \
-            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -m "deploy: $GITHUB_SHA"
+          git commit -m "deploy: $GITHUB_SHA"
           git push origin HEAD:gh-pages --force
