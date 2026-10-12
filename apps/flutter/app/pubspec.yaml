@@ -194,7 +194,7 @@ flutter:
         - asset: assets/fonts/CascadiaMono.ttf
     - family: OperitSans
       fonts:
-        - asset: assets/fonts/NotoSansSC.otf
+        - asset: assets/fonts/NotoSansSC.ttf
 
   # fonts:
   #   - family: Schyler
