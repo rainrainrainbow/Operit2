@@ -92,8 +92,8 @@ jobs:
 
       - name: Publish to gh-pages branch
         run: |
-          git config user.name='github-actions[bot]'
-          git config user.email='41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout --orphan gh-pages-tmp
           git rm -rf . >/dev/null 2>&1 || true
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
