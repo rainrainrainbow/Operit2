@@ -73,6 +73,9 @@ jobs:
       - name: Install wasm-bindgen CLI
         run: cargo install wasm-bindgen-cli --version "${WASM_BINDGEN_VERSION}" --locked
 
+      - name: Generate Dart proxy artifacts
+        run: cargo check --manifest-path core/crates/proxy/local/Cargo.toml --quiet
+
       - name: Build Flutter Web experience
         working-directory: apps/flutter/app
         run: fvm flutter build web --release --no-wasm-dry-run --base-href /
