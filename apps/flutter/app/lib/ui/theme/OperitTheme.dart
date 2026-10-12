@@ -1563,18 +1563,17 @@ String _customFontFamilyForPath(String fontPath) {
 
 final Set<String> _loadedCustomFontPaths = <String>{};
 
-const String _defaultFontFamily = 'Aptos';
+const String _defaultFontFamily = 'OperitSans';
 
 const List<String> _defaultFontFamilyFallback = <String>[
-  'Calibri',
-  'Segoe UI',
+  'OperitSans',
+  'OperitTerminalMono',
   'Microsoft YaHei UI',
   'Microsoft YaHei',
   'SimHei',
   'Noto Sans CJK SC',
   'Source Han Sans SC',
-  'Roboto',
-  'Arial',
+  'sans-serif',
 ];
 
 const List<String> _serifFontFamilyFallback = <String>[
