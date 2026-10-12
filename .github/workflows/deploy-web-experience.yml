@@ -78,7 +78,7 @@ jobs:
 
       - name: Build Flutter Web experience
         working-directory: apps/flutter/app
-        run: fvm flutter build web --release --no-wasm-dry-run --base-href /
+        run: fvm flutter build web --release --no-wasm-dry-run --base-href /Operit2/
 
       - name: Verify Flutter Web output
         run: |
